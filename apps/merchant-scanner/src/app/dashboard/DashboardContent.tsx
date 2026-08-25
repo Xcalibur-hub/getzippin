@@ -34,3 +34,9 @@ interface Transaction {
 }
 
 export default function DashboardContent({ merchantId }: { merchantId: string }) {
+  return (
+    <div>
+       Dashboard Content for {merchantId}
+    </div>
+  );
+}

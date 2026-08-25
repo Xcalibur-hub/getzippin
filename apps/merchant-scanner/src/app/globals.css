@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 17, 24, 39; /* gray-900 */
+  --background-end-rgb: 31, 41, 55; /* gray-800 */
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+/* Dark mode styling for html5-qrcode elements */
+#qr-reader {
+  border: none !important;
+}
+
+#qr-reader__dashboard_section_csr span {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+#qr-reader__dashboard_section_swaplink {
+  color: #3b82f6 !important; /* blue-500 */
+  text-decoration: none !important;
+}
+
+#qr-reader__dashboard_section_swaplink:hover {
+  color: #60a5fa !important; /* blue-400 */
+}
+
+#qr-reader button {
+  background-color: #374151 !important; /* gray-700 */
+  color: white !important;
+  border: 1px solid #4b5563 !important; /* gray-600 */
+  border-radius: 0.5rem !important;
+  padding: 0.5rem 1rem !important;
+  font-weight: 500 !important;
+  transition: all 0.2s !important;
+  cursor: pointer !important;
+  margin: 0.5rem !important;
+}
+
+#qr-reader button:hover {
+  background-color: #4b5563 !important; /* gray-600 */
+}
+
+#qr-reader select {
+  background-color: #374151 !important; /* gray-700 */
+  color: white !important;
+  border: 1px solid #4b5563 !important; /* gray-600 */
+  border-radius: 0.5rem !important;
+  padding: 0.5rem !important;
+  margin: 0.5rem !important;
+  outline: none !important;
+}
+
+#qr-reader select:focus {
+  border-color: #3b82f6 !important; /* blue-500 */
+}
