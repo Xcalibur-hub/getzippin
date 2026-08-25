@@ -1,12 +1,17 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { View, FlatList, Dimensions, ActivityIndicator, Text } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedScrollHandler,
-} from 'react-native-reanimated';
+import {
+  View,
+  FlatList,
+  Dimensions,
+  ActivityIndicator,
+  StyleSheet,
+  ViewToken,
+} from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import VideoCard from '../components/VideoCard';
-import { fetchVideos, Video as VideoType } from '../lib/supabase';
+import VideoCard from '../../components/VideoCard';
+import ClaimModal from '../../components/ClaimModal';
+import StakeModal from '../../components/StakeModal';
+import { fetchVideos, Video as VideoType } from '../../lib/supabase';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -16,26 +21,27 @@ export default function VideoFeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [activeIndex, setActiveIndex] = useState(0);
 
-  const scrollOffset = useSharedValue(0);
+  // Modal States
+  const [selectedVideo, setSelectedVideo] = useState<VideoType | null>(null);
+  const [claimVisible, setClaimVisible] = useState(false);
+  const [stakeVisible, setStakeVisible] = useState(false);
+
   const flatListRef = useRef<FlatList>(null);
 
-  // Load initial videos
   const loadVideos = async (pageNum: number, isRefresh: boolean = false) => {
     try {
       const newVideos = await fetchVideos(pageNum, 5);
-      
       if (isRefresh) {
         setVideos(newVideos);
       } else {
-        setVideos(prev => [...prev, ...newVideos]);
+        setVideos((prev) => [...prev, ...newVideos]);
       }
-      
       setHasMore(newVideos.length > 0);
-      setLoading(false);
-      setRefreshing(false);
     } catch (error) {
       console.error('Error loading videos:', error);
+    } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -47,66 +53,33 @@ export default function VideoFeedScreen() {
     }, [])
   );
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    setPage(1);
-    loadVideos(1, true);
-  };
-
-  const handleLoadMore = () => {
-    if (!loading && hasMore) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      loadVideos(nextPage);
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      if (viewableItems.length > 0 && viewableItems[0].index !== null) {
+        setActiveIndex(viewableItems[0].index);
+      }
     }
+  ).current;
+
+  const handleOpenClaim = (video: VideoType) => {
+    setSelectedVideo(video);
+    setClaimVisible(true);
   };
 
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollOffset.value = event.contentOffset.y;
-    },
-  });
-
-  const getActiveIndex = () => {
-    return Math.round(scrollOffset.value / SCREEN_HEIGHT);
+  const handleOpenStake = (video: VideoType) => {
+    setSelectedVideo(video);
+    setStakeVisible(true);
   };
 
-  const handleStakeKarma = async (predictionId: string, option: string, amount: number) => {
-    try {
-      const { data, error } = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/place-karma-bet`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({ prediction_id: predictionId, option, amount }),
-      });
-
-      if (error) throw error;
-      
-      console.log('Karma staked successfully!');
-    } catch (error) {
-      console.error('Error staking karma:', error);
-    }
-  };
-
-  const handleRevealDrop = async () => {
-    console.log('Reveal drop clicked');
-  };
-
-  const renderItem = ({ index }: { index: number }) => {
-    const video = videos[index];
-    if (!video) return null;
-
-    const isActive = index === getActiveIndex();
-
+  const renderItem = ({ item, index }: { item: VideoType; index: number }) => {
+    if (!item) return null;
     return (
       <View style={{ height: SCREEN_HEIGHT }}>
         <VideoCard
-          video={video}
-          isActive={isActive}
-          onStakeKarma={handleStakeKarma}
-          onRevealDrop={handleRevealDrop}
+          video={item}
+          isActive={index === activeIndex}
+          onRevealDrop={() => handleOpenClaim(item)}
+          onStakeKarma={() => handleOpenStake(item)}
         />
       </View>
     );
@@ -114,44 +87,59 @@ export default function VideoFeedScreen() {
 
   if (loading && videos.length === 0) {
     return (
-      <View className="flex-1 bg-black items-center justify-center">
-        <ActivityIndicator size="large" color="#fff" />
-        <Text className="text-white mt-4">Loading videos...</Text>
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#38bdf8" />
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-black">
-      <Animated.FlatList
+    <View style={styles.container}>
+      <FlatList
         ref={flatListRef}
         data={videos}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         pagingEnabled
         showsVerticalScrollIndicator={false}
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        onRefresh={handleRefresh}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
+        onRefresh={() => {
+          setRefreshing(true);
+          loadVideos(1, true);
+        }}
         refreshing={refreshing}
-        onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.5}
         getItemLayout={(_, index) => ({
           length: SCREEN_HEIGHT,
           offset: SCREEN_HEIGHT * index,
           index,
         })}
-        ListFooterComponent={() => {
-          if (loading && !refreshing) {
-            return (
-              <View className="py-8 items-center">
-                <ActivityIndicator size="small" color="#fff" />
-              </View>
-            );
-          }
-          return null;
-        }}
+      />
+
+      <ClaimModal
+        visible={claimVisible}
+        video={selectedVideo}
+        onClose={() => setClaimVisible(false)}
+      />
+
+      <StakeModal
+        visible={stakeVisible}
+        videoId={selectedVideo?.id || null}
+        onClose={() => setStakeVisible(false)}
       />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  centerContainer: {
+    flex: 1,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

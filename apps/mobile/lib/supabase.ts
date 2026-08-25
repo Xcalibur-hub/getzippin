@@ -5,83 +5,46 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export interface Video {
-  id: string;
-  creator_id: string;
-  video_url: string;
-  thumbnail_url: string;
-  title: string;
-  description: string;
-  like_count: number;
-  comment_count: number;
-  share_count: number;
-  is_liked: boolean;
-  drop_id?: string;
-  campaign?: {
-    id: string;
-    title: string;
-    cashback_amount: number;
-    min_purchase: number;
-  };
-}
-
 export interface Creator {
   id: string;
-  user_id: string;
   name: string;
+  handle: string;
   avatar_url: string;
-  bio: string;
-  follower_count: number;
-  is_verified: boolean;
 }
 
-export async function fetchVideos(page: number = 1, limit: number = 10): Promise<Video[]> {
+export interface Video {
+  id: string;
+  title: string;
+  video_url: string;
+  merchant_name?: string;
+  cashback_amount?: number;
+  creator_id?: string;
+  creators?: Creator;
+}
+
+export async function fetchVideos(page = 1, limit = 5): Promise<Video[]> {
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
   const { data, error } = await supabase
     .from('videos')
     .select(`
-      *,
+      id,
+      title,
+      video_url,
+      merchant_name,
+      cashback_amount,
+      creator_id,
       creators (
         id,
-        user_id,
         name,
-        avatar_url,
-        bio,
-        follower_count,
-        is_verified
-      ),
-      campaigns (
-        id,
-        title,
-        cashback_amount,
-        min_purchase
+        handle,
+        avatar_url
       )
     `)
-    .range((page - 1) * limit, page * limit - 1)
+    .range(from, to)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data || [];
-}
-
-export async function toggleLike(videoId: string, isLiked: boolean): Promise<void> {
-  const { error } = await supabase
-    .from('video_likes')
-    .upsert({ video_id: videoId, is_liked: isLiked });
-  
-  if (error) throw error;
-}
-
-export async function stakeKarma(predictionId: string, option: string, amount: number): Promise<void> {
-  // This would call the place-karma-bet edge function
-  const { error } = await supabase.functions.invoke('place-karma-bet', {
-    body: { prediction_id: predictionId, option, amount }
-  });
-  
-  if (error) throw error;
-}
-
-export async function sendTip(creatorId: string, amount: number, upiId: string): Promise<void> {
-  const upiLink = `upi://pay?pa=${upiId}&pn=Creator&am=${amount}&cu=INR`;
-  // In a real app, you'd use Linking.openURL(upiLink)
-  console.log('Opening UPI link:', upiLink);
+  return (data as unknown as Video[]) || [];
 }

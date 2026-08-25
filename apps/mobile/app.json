@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "getzippin",
+    "slug": "getzippin",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "getzippin",
+    "userInterfaceStyle": "dark",
+    "plugins": [
+      "expo-router",
+      "expo-video"
+    ]
+  }
+}
